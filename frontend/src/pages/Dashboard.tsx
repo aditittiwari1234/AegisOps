@@ -4,7 +4,6 @@ import type { Incident, LogEntry } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import type { WSEvent } from '../hooks/useWebSocket'
 import { IncidentCard } from '../components/IncidentCard'
-import { SimulateButton } from '../components/SimulateButton'
 import { LiveLogViewer } from '../components/LiveLogViewer'
 
 function MTTD(incidents: Incident[]) {
@@ -118,7 +117,7 @@ export default function Dashboard() {
                     : 'bg-slate-400'
                 }`}
               />
-              {wsConnected ? 'Live' : 'Connecting…'}
+              {wsConnected ? 'Live Telemetry' : 'Connecting…'}
             </div>
 
             {/* Toggle Logs View */}
@@ -132,9 +131,6 @@ export default function Dashboard() {
             >
               📟 Live Console {showLogs ? 'ON' : 'OFF'}
             </button>
-
-            {/* Simulate button */}
-            <SimulateButton onSimulated={fetchIncidents} />
           </div>
         </div>
       </header>
@@ -196,7 +192,7 @@ export default function Dashboard() {
             <div className="text-center py-16 text-slate-500 bg-white rounded-xl border border-slate-200">
               <div className="text-4xl mb-3">🌿</div>
               <p className="text-sm font-medium text-slate-600">
-                No incidents yet. Click <strong className="text-slate-900">Simulate Incident</strong> to start.
+                No incidents detected. All monitored services are healthy.
               </p>
             </div>
           ) : (
