@@ -98,6 +98,14 @@ async def health_poller():
             current = "unreachable"
 
         if current != "ok" and _last_health_status == "ok":
+            from .websocket.manager import ws_manager
+            await ws_manager.broadcast_log(
+                incident_id="*",
+                level="WARN",
+                source="HEALTH_POLLER",
+                message=f"Health Poller: {KARTIFY_URL}/health returned status '{current}'. Triggering auto-incident response.",
+                data={"url": f"{KARTIFY_URL}/health", "status": current},
+            )
             # Transition: healthy → unhealthy → auto-create incident
             async with AsyncSessionLocal() as db:
                 # Check no active incident already
@@ -125,7 +133,23 @@ async def health_poller():
                     )
                     db.add(ev)
                     await db.commit()
+                    await ws_manager.broadcast_log(
+                        incident_id=inc.id,
+                        level="ERROR",
+                        source="HEALTH_POLLER",
+                        message=f"Auto-created incident {inc.id[:8]} for service 'kartify'. Firing orchestrator pipeline.",
+                        data={"incident_id": inc.id},
+                    )
                     asyncio.create_task(run_orchestrator(inc.id, "Auto-detected health failure"))
+
+        elif current == "ok" and _last_health_status != "ok":
+            from .websocket.manager import ws_manager
+            await ws_manager.broadcast_log(
+                incident_id="*",
+                level="SUCCESS",
+                source="HEALTH_POLLER",
+                message=f"Health Poller: {KARTIFY_URL}/health is now healthy (200 OK).",
+            )
 
         _last_health_status = current if current == "ok" else "unhealthy"
 

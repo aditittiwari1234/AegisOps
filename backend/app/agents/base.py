@@ -36,10 +36,11 @@ async def run_agent(
     """
     Core agent runner:
     1. Persists agent_run record (running)
-    2. Calls LLM
-    3. Updates agent_run (done / failed)
-    4. Emits WebSocket event
-    5. Returns validated Pydantic output
+    2. Broadcasts starting live log
+    3. Calls LLM with structured output
+    4. Updates agent_run (done / failed)
+    5. Emits WebSocket event + completion live log
+    6. Returns validated Pydantic output
     """
     run = AgentRun(
         incident_id=incident.id,
@@ -60,8 +61,23 @@ async def run_agent(
         payload={"agent": agent_name},
     )
 
+    await ws_manager.broadcast_log(
+        incident_id=incident.id,
+        level="INFO",
+        source=f"AGENT:{agent_name}",
+        message=f"Agent '{agent_name}' activated. Preparing prompt ({len(prompt)} chars)...",
+        data={"prompt_preview": prompt[:300] + ("..." if len(prompt) > 300 else "")},
+    )
+
     t0 = time.monotonic()
     try:
+        await ws_manager.broadcast_log(
+            incident_id=incident.id,
+            level="DEBUG",
+            source=f"AGENT:{agent_name}",
+            message=f"Dispatching inference request to Gemini LLM with schema '{response_schema.__name__}'...",
+        )
+
         result: T = await llm.complete_with_retry(prompt, response_schema)
         duration_ms = int((time.monotonic() - t0) * 1000)
 
@@ -77,6 +93,15 @@ async def run_agent(
             agent=agent_name,
             status=incident.status,
             payload=result.model_dump(),
+        )
+
+        summary_msg = f"Agent '{agent_name}' completed analysis in {duration_ms}ms."
+        await ws_manager.broadcast_log(
+            incident_id=incident.id,
+            level="SUCCESS",
+            source=f"AGENT:{agent_name}",
+            message=summary_msg,
+            data=result.model_dump(),
         )
         return result
 
@@ -94,6 +119,14 @@ async def run_agent(
             status=incident.status,
             payload={"error": str(exc)},
         )
+
+        await ws_manager.broadcast_log(
+            incident_id=incident.id,
+            level="ERROR",
+            source=f"AGENT:{agent_name}",
+            message=f"Agent '{agent_name}' failed after {duration_ms}ms: {exc}",
+            data={"error": str(exc)},
+        )
         raise
 
 
@@ -102,6 +135,12 @@ async def add_event(db: AsyncSession, incident_id: str, event_type: str, message
     ev = IncidentEvent(incident_id=incident_id, event_type=event_type, message=message)
     db.add(ev)
     await db.commit()
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="INFO",
+        source="SYSTEM",
+        message=f"Timeline event [{event_type}]: {message}",
+    )
 
 
 async def update_status(db: AsyncSession, incident: Incident, new_status: str):
@@ -118,4 +157,11 @@ async def update_status(db: AsyncSession, incident: Incident, new_status: str):
         agent=None,
         status=new_status,
         payload={"old": old, "new": new_status},
+    )
+    await ws_manager.broadcast_log(
+        incident_id=incident.id,
+        level="WARN" if new_status in ("DETECTED", "FAILED", "ESCALATED") else "SUCCESS" if new_status == "RESOLVED" else "INFO",
+        source="ORCHESTRATOR",
+        message=f"Incident status changed: {old} → {new_status}",
+        data={"old_status": old, "new_status": new_status, "incident_id": incident.id},
     )

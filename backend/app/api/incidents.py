@@ -16,6 +16,7 @@ from ..database import get_db
 from ..models import Incident, IncidentEvent, KnowledgeIncident
 from ..schemas import IncidentOut, SimulateRequest, KnowledgeIncidentOut
 from ..orchestrator.engine import run_orchestrator
+from ..websocket.manager import ws_manager
 
 KARTIFY_URL = os.getenv("KARTIFY_URL", "http://localhost:4000")
 KARTIFY_ADMIN_KEY = os.getenv("KARTIFY_ADMIN_KEY", "admin123")
@@ -24,8 +25,15 @@ router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
 def _with_relations():
-    return selectinload(Incident.events).selectinload(Incident.agent_runs).selectinload(Incident.remediation_actions).selectinload(Incident.verification_results)
+    return (
+        selectinload(Incident.events)
+        .selectinload(Incident.agent_runs)
+        .selectinload(Incident.remediation_actions)
+        .selectinload(Incident.verification_results)
+    )
 
+
+# ── Static routes (MUST be defined before /{incident_id} routes) ──────────────
 
 @router.get("", response_model=list[IncidentOut])
 async def list_incidents(db: AsyncSession = Depends(get_db)):
@@ -43,22 +51,19 @@ async def list_incidents(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 
-@router.get("/{incident_id}", response_model=IncidentOut)
-async def get_incident(incident_id: str, db: AsyncSession = Depends(get_db)):
+@router.get("/logs/all")
+async def get_all_logs(limit: int = 300):
+    """Return global live logs from the in-memory ring buffer."""
+    return {"logs": ws_manager.get_logs(limit=limit)}
+
+
+@router.get("/knowledge/history", response_model=list[KnowledgeIncidentOut])
+async def knowledge_history(db: AsyncSession = Depends(get_db)):
+    """Return all resolved incidents stored in knowledge base."""
     result = await db.execute(
-        select(Incident)
-        .where(Incident.id == incident_id)
-        .options(
-            selectinload(Incident.events),
-            selectinload(Incident.agent_runs),
-            selectinload(Incident.remediation_actions),
-            selectinload(Incident.verification_results),
-        )
+        select(KnowledgeIncident).order_by(KnowledgeIncident.ts.desc()).limit(20)
     )
-    inc = result.scalar_one_or_none()
-    if not inc:
-        raise HTTPException(status_code=404, detail="Incident not found")
-    return inc
+    return result.scalars().all()
 
 
 @router.post("/simulate", response_model=IncidentOut)
@@ -112,6 +117,35 @@ async def simulate_incident(
     await db.commit()
     await db.refresh(inc)
 
+    if body.trigger_kartify:
+        await ws_manager.broadcast_log(
+            incident_id=inc.id,
+            level="WARN",
+            source="KARTIFY",
+            message="Incident simulated on Kartify: Database connection pool exhausted (failure mode active)",
+            data={"service": body.service, "incident_id": inc.id},
+        )
+        await ws_manager.broadcast_log(
+            incident_id=inc.id,
+            level="ERROR",
+            source="KARTIFY",
+            message="Database connection pool exhausted. Active connections: 100/100. New connection attempt failed.",
+        )
+        await ws_manager.broadcast_log(
+            incident_id=inc.id,
+            level="ERROR",
+            source="KARTIFY",
+            message="ECONNREFUSED on db.read() - retrying in 5000ms",
+        )
+
+    await ws_manager.broadcast_log(
+        incident_id=inc.id,
+        level="INFO",
+        source="ORCHESTRATOR",
+        message=f"Incident {inc.id[:8]} registered in DETECTED state. Initiating autonomous remediation pipeline.",
+        data={"incident_id": inc.id, "service": inc.service},
+    )
+
     # Step 3: run orchestrator async
     background_tasks.add_task(run_orchestrator, inc.id, log_snippet)
 
@@ -129,10 +163,27 @@ async def simulate_incident(
     return result.scalar_one()
 
 
-@router.get("/knowledge/history", response_model=list[KnowledgeIncidentOut])
-async def knowledge_history(db: AsyncSession = Depends(get_db)):
-    """Return all resolved incidents stored in knowledge base."""
+# ── Parameterized routes (placed after static routes) ─────────────────────────
+
+@router.get("/{incident_id}/logs")
+async def get_incident_logs(incident_id: str, limit: int = 300):
+    """Return live logs for a specific incident."""
+    return {"incident_id": incident_id, "logs": ws_manager.get_logs(incident_id, limit=limit)}
+
+
+@router.get("/{incident_id}", response_model=IncidentOut)
+async def get_incident(incident_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(KnowledgeIncident).order_by(KnowledgeIncident.ts.desc()).limit(20)
+        select(Incident)
+        .where(Incident.id == incident_id)
+        .options(
+            selectinload(Incident.events),
+            selectinload(Incident.agent_runs),
+            selectinload(Incident.remediation_actions),
+            selectinload(Incident.verification_results),
+        )
     )
-    return result.scalars().all()
+    inc = result.scalar_one_or_none()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return inc

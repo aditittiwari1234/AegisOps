@@ -37,6 +37,13 @@ async def run_orchestrator(incident_id: str, log_snippet: str = ""):
                 if inc:
                     await update_status(err_db, inc, "FAILED")
                     await add_event(err_db, incident_id, "orchestrator_error", str(exc))
+                    await ws_manager.broadcast_log(
+                        incident_id=incident_id,
+                        level="ERROR",
+                        source="ORCHESTRATOR",
+                        message=f"Orchestrator pipeline failed with unhandled exception: {exc}",
+                        data={"error": str(exc)},
+                    )
             raise
 
 
@@ -55,6 +62,14 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
         payload={"incident_id": incident_id},
     )
 
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="INFO",
+        source="ORCHESTRATOR",
+        message=f"State Machine started for Incident {incident_id[:8]} [Service: {inc.service}]",
+        data={"incident_id": incident_id, "service": inc.service, "initial_status": inc.status},
+    )
+
     # ── DETECTED → INVESTIGATING ───────────────────────────────────────────────
     await update_status(db, inc, "INVESTIGATING")
     await add_event(db, incident_id, "agent_started", "Detection Agent: enriching severity and summary")
@@ -71,6 +86,14 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
     inc.summary = detection_result.summary
     await db.commit()
 
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="INFO",
+        source="ORCHESTRATOR",
+        message=f"Detection Agent classified severity as {inc.severity}: '{inc.title}'",
+        data={"severity": inc.severity, "title": inc.title, "summary": inc.summary},
+    )
+
     # ── INVESTIGATING → DIAGNOSING ─────────────────────────────────────────────
     await update_status(db, inc, "DIAGNOSING")
     await add_event(db, incident_id, "agent_started", "Investigation Agent: collecting evidence")
@@ -79,6 +102,14 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
         db=db,
         incident=inc,
         log_snippet=log_snippet,
+    )
+
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="INFO",
+        source="ORCHESTRATOR",
+        message=f"Investigation Agent extracted {len(investigation_result.evidence)} evidence points (confidence: {investigation_result.confidence})",
+        data={"evidence": investigation_result.evidence, "components": investigation_result.affected_components},
     )
 
     await add_event(db, incident_id, "agent_started", "Knowledge Agent: searching past incidents")
@@ -101,6 +132,14 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
     inc.root_cause = root_cause_result.root_cause
     await db.commit()
 
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="INFO",
+        source="ORCHESTRATOR",
+        message=f"Root Cause Agent identified root cause: '{inc.root_cause}' -> Recommended runbook: '{root_cause_result.recommended_runbook}'",
+        data={"root_cause": inc.root_cause, "runbook": root_cause_result.recommended_runbook, "confidence": root_cause_result.confidence},
+    )
+
     # ── DIAGNOSING → SAFETY_REVIEW ─────────────────────────────────────────────
     await update_status(db, inc, "SAFETY_REVIEW")
     await add_event(db, incident_id, "agent_started", f"Safety Agent: evaluating '{root_cause_result.recommended_runbook}'")
@@ -120,17 +159,42 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
             db, incident_id, "approval_required",
             f"Action '{runbook_name}' requires human approval (risk={safety_result.risk_level})"
         )
+        await ws_manager.broadcast_log(
+            incident_id=incident_id,
+            level="WARN",
+            source="SAFETY_GATE",
+            message=f"Safety Gate: Action '{runbook_name}' requires approval (risk: {safety_result.risk_level})",
+            data={"risk_level": safety_result.risk_level, "runbook": runbook_name},
+        )
         # For hackathon MVP: auto-approve MEDIUM after 3s delay (simulate human click)
         if safety_result.risk_level == "MEDIUM":
             await asyncio.sleep(3)
+            await ws_manager.broadcast_log(
+                incident_id=incident_id,
+                level="INFO",
+                source="SAFETY_GATE",
+                message=f"Safety Gate: Auto-approved action '{runbook_name}' after safety threshold check.",
+            )
         else:
             await add_event(db, incident_id, "escalated", "HIGH risk action blocked — escalated to on-call")
             await update_status(db, inc, "ESCALATED")
+            await ws_manager.broadcast_log(
+                incident_id=incident_id,
+                level="ERROR",
+                source="ORCHESTRATOR",
+                message=f"Incident escalated to human on-call engineer due to HIGH risk policy.",
+            )
             return
 
     # ── SAFETY_REVIEW → REMEDIATING ───────────────────────────────────────────
     await update_status(db, inc, "REMEDIATING")
     await add_event(db, incident_id, "runbook_executing", f"Executing runbook: {runbook_name}")
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="INFO",
+        source="ORCHESTRATOR",
+        message=f"Dispatching remediation action: {runbook_name}",
+    )
 
     action_result = await action.run(
         db=db,
@@ -141,13 +205,31 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
     if not action_result.executed:
         await update_status(db, inc, "FAILED")
         await add_event(db, incident_id, "action_failed", action_result.error or "Action execution failed")
+        await ws_manager.broadcast_log(
+            incident_id=incident_id,
+            level="ERROR",
+            source="ORCHESTRATOR",
+            message=f"Remediation runbook '{runbook_name}' failed: {action_result.error}",
+        )
         return
 
     await add_event(db, incident_id, "runbook_complete", f"Runbook '{runbook_name}' executed successfully")
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="SUCCESS",
+        source="ORCHESTRATOR",
+        message=f"Runbook '{runbook_name}' executed successfully (HTTP {action_result.http_status})",
+    )
 
     # ── REMEDIATING → VERIFYING ────────────────────────────────────────────────
     await update_status(db, inc, "VERIFYING")
     await add_event(db, incident_id, "agent_started", "Verification Agent: confirming recovery")
+    await ws_manager.broadcast_log(
+        incident_id=incident_id,
+        level="INFO",
+        source="ORCHESTRATOR",
+        message="Awaiting service recovery buffer (2s) before telemetry verification...",
+    )
 
     # Small buffer to allow Kartify to recover
     await asyncio.sleep(2)
@@ -163,6 +245,13 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
         inc.root_cause = inc.root_cause or root_cause_result.root_cause
         await update_status(db, inc, "RESOLVED")
         await add_event(db, incident_id, "resolved", verification_result.resolution_summary)
+        await ws_manager.broadcast_log(
+            incident_id=incident_id,
+            level="SUCCESS",
+            source="ORCHESTRATOR",
+            message=f"Incident {incident_id[:8]} RESOLVED! {verification_result.resolution_summary}",
+            data={"resolution": verification_result.resolution_summary},
+        )
 
         # Store in knowledge base for future incidents
         await _store_knowledge(
@@ -171,11 +260,23 @@ async def _run(db: AsyncSession, incident_id: str, log_snippet: str):
             runbook_used=runbook_name,
             resolution_summary=verification_result.resolution_summary,
         )
+        await ws_manager.broadcast_log(
+            incident_id=incident_id,
+            level="INFO",
+            source="KNOWLEDGE_BASE",
+            message=f"Incident resolution stored in Knowledge Base for future AI incident resolution matching.",
+        )
     else:
         await update_status(db, inc, "FAILED")
         await add_event(
             db, incident_id, "verification_failed",
             f"Verification failed: health={verification_result.health_status}"
+        )
+        await ws_manager.broadcast_log(
+            incident_id=incident_id,
+            level="ERROR",
+            source="ORCHESTRATOR",
+            message=f"Verification failed: health={verification_result.health_status}",
         )
 
 

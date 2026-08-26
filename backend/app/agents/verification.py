@@ -22,7 +22,7 @@ class VerificationOutput(BaseModel):
     resolution_summary: str = Field(description="Post-mortem resolution summary")
 
 
-async def _poll_health(attempts: int = 3, delay: float = 4.0) -> dict:
+async def _poll_health(attempts: int = 4, delay: float = 1.5) -> dict:
     """Poll /health up to `attempts` times, return last result."""
     last: dict = {"status": "unknown", "http_status": 0}
     for _ in range(attempts):
@@ -44,8 +44,8 @@ async def run(
     incident: Incident,
     runbook_used: str,
 ) -> VerificationOutput:
-    # Poll health 3× with 4s between checks
-    health = await _poll_health(attempts=3, delay=4.0)
+    # Poll health up to 4× with 1.5s between checks
+    health = await _poll_health(attempts=4, delay=1.5)
 
     recovered = health.get("status") == "ok"
     error_rate_before = 100.0   # 100% failure rate before remediation

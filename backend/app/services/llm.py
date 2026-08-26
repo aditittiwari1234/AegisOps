@@ -38,17 +38,22 @@ class LLMClient:
     # ── Gemini ────────────────────────────────────────────────────────────────
 
     async def _gemini(self, prompt: str, response_schema: Type[T]) -> T:
+        import asyncio
         from google import genai
         from google.genai import types
-        client = genai.Client(api_key=GEMINI_API_KEY)
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=response_schema,
-            ),
-        )
+
+        def _call_gemini():
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            return client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                ),
+            )
+
+        response = await asyncio.to_thread(_call_gemini)
         raw = response.text
         data = json.loads(raw)
         return response_schema.model_validate(data)
@@ -91,16 +96,23 @@ class LLMClient:
 
     # ── Retry wrapper ─────────────────────────────────────────────────────────
 
-    async def complete_with_retry(self, prompt: str, response_schema: Type[T], retries: int = 1) -> T:
-        """Attempt completion; on JSON parse failure, ask model to fix its output once."""
+    async def complete_with_retry(self, prompt: str, response_schema: Type[T], retries: int = 3) -> T:
+        """Attempt completion; handle rate limits (429) with backoff and on JSON parse failure retry."""
+        import asyncio
         last_err: Exception | None = None
         for attempt in range(retries + 1):
             try:
                 return await self.complete(prompt, response_schema)
-            except (json.JSONDecodeError, Exception) as e:
+            except Exception as e:
                 last_err = e
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    if attempt < retries:
+                        await asyncio.sleep(4.0)
+                        continue
                 if attempt < retries:
                     prompt = prompt + "\n\nYour previous response was not valid JSON. Respond ONLY with a valid JSON object."
+                    await asyncio.sleep(1.0)
         raise RuntimeError(f"LLM failed after {retries + 1} attempts: {last_err}") from last_err
 
 

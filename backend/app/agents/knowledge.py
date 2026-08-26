@@ -42,6 +42,14 @@ async def run(
         payload={"keywords": keywords},
     )
 
+    await ws_manager.broadcast_log(
+        incident_id=incident.id,
+        level="INFO",
+        source="AGENT:knowledge",
+        message=f"Knowledge Agent querying historical database with keywords: {', '.join(keywords)}",
+        data={"keywords": keywords},
+    )
+
     # Build LIKE filter for each keyword
     filters = []
     for kw in keywords:
@@ -91,6 +99,14 @@ async def run(
         agent="knowledge",
         status=incident.status,
         payload=result.model_dump(),
+    )
+
+    await ws_manager.broadcast_log(
+        incident_id=incident.id,
+        level="SUCCESS",
+        source="AGENT:knowledge",
+        message=f"Knowledge Agent match complete: {knowledge_summary}",
+        data=result.model_dump(),
     )
 
     return result
