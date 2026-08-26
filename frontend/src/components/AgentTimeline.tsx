@@ -44,10 +44,10 @@ export function AgentTimeline({ agentRuns, liveEvents }: Props) {
           <div
             key={agentName}
             className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all duration-300 ${
-              isDone ? 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-500/30 dark:bg-emerald-500/5 shadow-xs' :
-              isFailed ? 'border-rose-200 bg-rose-50/60 dark:border-red-500/30 dark:bg-red-500/5 shadow-xs' :
-              isRunning ? 'border-blue-300 bg-blue-50/80 dark:border-blue-500/40 dark:bg-blue-500/10 shadow-sm ring-2 ring-blue-500/20' :
-              'border-slate-200 bg-slate-50/40 dark:border-white/5 dark:bg-white/2 opacity-70'
+              isDone ? 'border-emerald-200 bg-emerald-50/60 shadow-xs' :
+              isFailed ? 'border-rose-200 bg-rose-50/60 shadow-xs' :
+              isRunning ? 'border-blue-300 bg-blue-50/80 shadow-sm ring-2 ring-blue-500/20' :
+              'border-slate-200 bg-slate-50/50 opacity-80'
             }`}
           >
             {/* Icon/Status indicator */}
@@ -62,26 +62,26 @@ export function AgentTimeline({ agentRuns, liveEvents }: Props) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-sm font-semibold ${
-                  isDone ? 'text-emerald-800 dark:text-emerald-400' :
-                  isRunning ? 'text-blue-700 dark:text-blue-300' :
-                  isFailed ? 'text-rose-800 dark:text-red-400' :
-                  'text-slate-600 dark:text-slate-500'
+                  isDone ? 'text-emerald-800' :
+                  isRunning ? 'text-blue-700' :
+                  isFailed ? 'text-rose-800' :
+                  'text-slate-600'
                 }`}>
                   {meta.label}
                 </span>
                 {run?.duration_ms && (
-                  <span className="text-xs font-mono text-slate-500 dark:text-slate-500">{run.duration_ms}ms</span>
+                  <span className="text-xs font-mono text-slate-500">{run.duration_ms}ms</span>
                 )}
               </div>
 
               {/* Agent output */}
               {isDone && run?.output_json && (
-                <div className="mt-2 text-xs text-slate-700 dark:text-slate-300 space-y-1 bg-white/70 dark:bg-black/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                <div className="mt-2 text-xs text-slate-700 space-y-1 bg-white p-2.5 rounded-lg border border-emerald-200/80 shadow-xs">
                   {Object.entries(run.output_json).slice(0, 3).map(([k, v]) => (
                     typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' ? (
                       <div key={k} className="truncate">
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">{k}: </span>
-                        <span className="font-mono text-slate-800 dark:text-slate-200">{String(v)}</span>
+                        <span className="text-slate-500 font-medium">{k}: </span>
+                        <span className="font-mono text-slate-800 font-semibold">{String(v)}</span>
                       </div>
                     ) : null
                   ))}
@@ -89,11 +89,11 @@ export function AgentTimeline({ agentRuns, liveEvents }: Props) {
               )}
 
               {isRunning && (
-                <div className="mt-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 animate-pulse">Running autonomous analysis…</div>
+                <div className="mt-1.5 text-xs font-medium text-blue-600 animate-pulse">Running autonomous analysis…</div>
               )}
 
               {isFailed && run?.output_json && 'error' in run.output_json && (
-                <div className="mt-1.5 text-xs font-medium text-rose-600 dark:text-red-400">
+                <div className="mt-1.5 text-xs font-medium text-rose-600">
                   {String(run.output_json.error)}
                 </div>
               )}

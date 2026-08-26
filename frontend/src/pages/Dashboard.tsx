@@ -6,7 +6,6 @@ import type { WSEvent } from '../hooks/useWebSocket'
 import { IncidentCard } from '../components/IncidentCard'
 import { SimulateButton } from '../components/SimulateButton'
 import { LiveLogViewer } from '../components/LiveLogViewer'
-import { ThemeToggle } from '../components/ThemeToggle'
 
 function MTTD(incidents: Incident[]) {
   const resolved = incidents.filter((i) => i.resolved_at)
@@ -96,27 +95,27 @@ export default function Dashboard() {
   const avgMTTR = MTTD(incidents)
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 font-sans transition-colors">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       {/* Header */}
-      <header className="border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-[#0a0f1a]/80 backdrop-blur sticky top-0 z-10 shadow-xs">
+      <header className="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-10 shadow-xs">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-sm shadow-blue-500/30">
               A
             </div>
             <div>
-              <h1 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">AegisOps</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Autonomous Incident Response</p>
+              <h1 className="text-base font-bold text-slate-900 tracking-tight">AegisOps</h1>
+              <p className="text-xs text-slate-500">Autonomous Incident Response</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             {/* WS status indicator */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 px-2 py-1 bg-slate-100 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">
               <span
                 className={`h-2 w-2 rounded-full ${
                   wsConnected
                     ? 'bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.8)]'
-                    : 'bg-slate-400 dark:bg-slate-600'
+                    : 'bg-slate-400'
                 }`}
               />
               {wsConnected ? 'Live' : 'Connecting…'}
@@ -127,15 +126,12 @@ export default function Dashboard() {
               onClick={() => setShowLogs((prev) => !prev)}
               className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-all cursor-pointer ${
                 showLogs
-                  ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/40 shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:text-slate-900'
               }`}
             >
               📟 Live Console {showLogs ? 'ON' : 'OFF'}
             </button>
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
 
             {/* Simulate button */}
             <SimulateButton onSimulated={fetchIncidents} />
@@ -147,18 +143,18 @@ export default function Dashboard() {
         {/* Stats strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Incidents', value: incidents.length, color: 'text-slate-900 dark:text-white' },
+            { label: 'Total Incidents', value: incidents.length, color: 'text-slate-900' },
             {
               label: 'Active',
               value: active.length,
-              color: active.length > 0 ? 'text-amber-600 dark:text-yellow-400' : 'text-slate-500 dark:text-slate-400',
+              color: active.length > 0 ? 'text-amber-600' : 'text-slate-500',
             },
-            { label: 'Resolved', value: resolved.length, color: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Avg MTTR', value: avgMTTR != null ? `${avgMTTR}s` : '—', color: 'text-blue-600 dark:text-blue-400' },
+            { label: 'Resolved', value: resolved.length, color: 'text-emerald-600' },
+            { label: 'Avg MTTR', value: avgMTTR != null ? `${avgMTTR}s` : '—', color: 'text-blue-600' },
           ].map((stat) => (
-            <div key={stat.label} className="p-4 rounded-xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/2 shadow-xs">
+            <div key={stat.label} className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{stat.label}</div>
+              <div className="text-xs text-slate-500 mt-0.5">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -178,7 +174,7 @@ export default function Dashboard() {
         {/* Active incidents */}
         {active.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <span>🔴 Active Incidents</span>
             </h2>
             <div className="space-y-3">
@@ -191,16 +187,16 @@ export default function Dashboard() {
 
         {/* All incidents */}
         <section>
-          <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
             <span>📋 Incident History</span>
           </h2>
           {loading ? (
-            <div className="text-sm text-slate-500 dark:text-slate-400 animate-pulse">Loading incidents…</div>
+            <div className="text-sm text-slate-500 animate-pulse">Loading incidents…</div>
           ) : incidents.length === 0 ? (
-            <div className="text-center py-16 text-slate-500 dark:text-slate-600 bg-white dark:bg-white/1 rounded-xl border border-slate-200 dark:border-white/5">
+            <div className="text-center py-16 text-slate-500 bg-white rounded-xl border border-slate-200">
               <div className="text-4xl mb-3">🌿</div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                No incidents yet. Click <strong className="text-slate-900 dark:text-slate-200">Simulate Incident</strong> to start.
+              <p className="text-sm font-medium text-slate-600">
+                No incidents yet. Click <strong className="text-slate-900">Simulate Incident</strong> to start.
               </p>
             </div>
           ) : (
