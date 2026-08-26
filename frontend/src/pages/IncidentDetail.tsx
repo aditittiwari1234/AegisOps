@@ -62,7 +62,7 @@ export default function IncidentDetail() {
     }
   }, [id, fetch])
 
-  useWebSocket(handleWS)
+  useWebSocket(handleWS, id)
 
   if (loading) return (
     <div className="min-h-screen bg-[#080c14] flex items-center justify-center text-slate-500 text-sm">

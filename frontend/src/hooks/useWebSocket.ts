@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 
 const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
 
@@ -11,31 +11,48 @@ export type WSEvent = {
   timestamp: string
 }
 
-export function useWebSocket(onMessage: (evt: WSEvent) => void) {
+export function useWebSocket(onMessage: (evt: WSEvent) => void, incidentId: string = '*') {
+  const [isConnected, setIsConnected] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onMessageRef = useRef(onMessage)
+
+  useEffect(() => {
+    onMessageRef.current = onMessage
+  }, [onMessage])
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
-    const ws = new WebSocket(`${WS_BASE}/ws/incidents`)
+    const path = incidentId === '*' ? '/ws/incidents' : `/ws/incidents/${incidentId}`
+    const ws = new WebSocket(`${WS_BASE}${path}`)
     wsRef.current = ws
+
+    ws.onopen = () => {
+      setIsConnected(true)
+    }
 
     ws.onmessage = (e) => {
       try {
         const data: WSEvent = JSON.parse(e.data)
-        onMessage(data)
+        setIsConnected(true)
+        onMessageRef.current(data)
       } catch {
         // ignore malformed frames
       }
     }
 
     ws.onclose = () => {
+      setIsConnected(false)
       // Auto-reconnect after 3s
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
       reconnectTimer.current = setTimeout(connect, 3000)
     }
 
-    ws.onerror = () => ws.close()
-  }, [onMessage])
+    ws.onerror = () => {
+      setIsConnected(false)
+      ws.close()
+    }
+  }, [incidentId])
 
   useEffect(() => {
     connect()
@@ -56,4 +73,6 @@ export function useWebSocket(onMessage: (evt: WSEvent) => void) {
     const id = setInterval(sendPing, 20_000)
     return () => clearInterval(id)
   }, [sendPing])
+
+  return { isConnected }
 }

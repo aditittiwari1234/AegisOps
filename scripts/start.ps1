@@ -4,10 +4,10 @@
 Write-Host "Starting AegisOps..." -ForegroundColor Cyan
 
 # Check .env exists
-if (-not (Test-Path "$PSScriptRoot\..\env")) {
+if (-not (Test-Path "$PSScriptRoot\..\.env")) {
     if (Test-Path "$PSScriptRoot\..\.env.example") {
         Copy-Item "$PSScriptRoot\..\.env.example" "$PSScriptRoot\..\.env"
-        Write-Host ".env created from .env.example — please add your GEMINI_API_KEY!" -ForegroundColor Yellow
+        Write-Host ".env created from .env.example - please add your GEMINI_API_KEY!" -ForegroundColor Yellow
     }
 }
 

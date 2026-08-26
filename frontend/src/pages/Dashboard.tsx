@@ -20,7 +20,6 @@ function MTTD(incidents: Incident[]) {
 export default function Dashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
-  const [wsConnected, setWsConnected] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchIncidents = useCallback(async () => {
@@ -34,7 +33,7 @@ export default function Dashboard() {
     }
   }, [])
 
-  // Poll every 3s as WS fallback
+  // Poll every 3s as fallback
   useEffect(() => {
     fetchIncidents()
     pollRef.current = setInterval(fetchIncidents, 3000)
@@ -42,14 +41,13 @@ export default function Dashboard() {
   }, [fetchIncidents])
 
   const handleWS = useCallback((evt: WSEvent) => {
-    setWsConnected(true)
     // Refresh incident list on any interesting event
-    if (['status.changed', 'agent.completed', 'orchestrator.started'].includes(evt.type)) {
+    if (['status.changed', 'agent.completed', 'orchestrator.started', 'connection.established'].includes(evt.type)) {
       fetchIncidents()
     }
   }, [fetchIncidents])
 
-  useWebSocket(handleWS)
+  const { isConnected: wsConnected } = useWebSocket(handleWS)
 
   const active = incidents.filter(i => !['RESOLVED', 'FAILED', 'ESCALATED'].includes(i.status))
   const resolved = incidents.filter(i => i.status === 'RESOLVED')

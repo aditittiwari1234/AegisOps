@@ -17,6 +17,17 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, incident_id: str = "*"):
         await websocket.accept()
         self._connections.setdefault(incident_id, set()).add(websocket)
+        try:
+            await websocket.send_text(json.dumps({
+                "type": "connection.established",
+                "incident_id": incident_id,
+                "agent": None,
+                "status": "connected",
+                "payload": {"message": "WebSocket connected to AegisOps engine"},
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }))
+        except Exception:
+            pass
 
     def disconnect(self, websocket: WebSocket, incident_id: str = "*"):
         bucket = self._connections.get(incident_id, set())
