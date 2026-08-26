@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { listIncidents, simulateIncident } from '../services/api'
 import type { Incident } from '../services/api'
-import { useWebSocket, WSEvent } from '../hooks/useWebSocket'
+import { useWebSocket } from '../hooks/useWebSocket'
+import type { WSEvent } from '../hooks/useWebSocket'
 import { IncidentCard } from '../components/IncidentCard'
 import { SimulateButton } from '../components/SimulateButton'
 
