@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --bg: #080c14;
+  --surface: #0a0f1a;
+  --border: rgba(255,255,255,0.06);
+  --text: #e2e8f0;
+  --text-muted: #64748b;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* Tailwind-style utilities we use in components */
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.min-w-0 { min-width: 0; }
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
+
+@keyframes shimmer {
+  100% { transform: translateX(200%); }
+}
+
+/* Glow effects */
+.glow-emerald { box-shadow: 0 0 20px rgba(16,185,129,0.3); }
+.glow-blue { box-shadow: 0 0 20px rgba(59,130,246,0.3); }
+.glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.3); }
