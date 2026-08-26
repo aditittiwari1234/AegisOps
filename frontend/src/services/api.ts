@@ -77,3 +77,6 @@ export const getIncidentLogs = (id: string) =>
   api.get<{ incident_id: string; logs: LogEntry[] }>(`/incidents/${id}/logs`).then(r => r.data.logs)
 export const getAllLogs = () =>
   api.get<{ logs: LogEntry[] }>('/incidents/logs/all').then(r => r.data.logs)
+export const deleteIncident = (id: string) =>
+  api.delete<{ status: string; deleted_id: string }>(`/incidents/${id}`).then(r => r.data)
+

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { getIncident, getIncidentLogs } from '../services/api'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { getIncident, getIncidentLogs, deleteIncident } from '../services/api'
 import type { Incident, LogEntry } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import type { WSEvent } from '../hooks/useWebSocket'
@@ -40,6 +40,7 @@ function EventFeed({ events }: { events: Incident['events'] }) {
 
 export default function IncidentDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [incident, setIncident] = useState<Incident | null>(null)
   const [liveEvents, setLiveEvents] = useState<WSEvent[]>([])
   const [logs, setLogs] = useState<LogEntry[]>([])
@@ -95,14 +96,30 @@ export default function IncidentDetail() {
         })
       }
 
+      if (evt.type === 'incident.deleted' && evt.payload?.id === id) {
+        navigate('/')
+      }
+
       if (['agent.completed', 'status.changed', 'agent.started', 'orchestrator.started'].includes(evt.type)) {
         fetch()
       }
     },
-    [id, fetch]
+    [id, fetch, navigate]
   )
 
   useWebSocket(handleWS, id)
+
+  const handleDelete = async () => {
+    if (!id || !incident) return
+    if (window.confirm(`Are you sure you want to delete incident "${incident.title}"?`)) {
+      try {
+        await deleteIncident(id)
+        navigate('/')
+      } catch {
+        alert('Failed to delete incident.')
+      }
+    }
+  }
 
   if (loading)
     return (
@@ -142,37 +159,49 @@ export default function IncidentDetail() {
             <span className="text-sm text-slate-800 font-mono font-semibold">{incident.id.slice(0, 8)}</span>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+              <button
+                onClick={() => setActiveTab('split')}
+                className={`px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
+                  activeTab === 'split'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Split View
+              </button>
+              <button
+                onClick={() => setActiveTab('pipeline')}
+                className={`px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
+                  activeTab === 'pipeline'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                AI Pipeline
+              </button>
+              <button
+                onClick={() => setActiveTab('logs')}
+                className={`px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
+                  activeTab === 'logs'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                ⚡ Live Logs ({logs.length})
+              </button>
+            </div>
+
+            {/* Delete Incident Button */}
             <button
-              onClick={() => setActiveTab('split')}
-              className={`px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
-                activeTab === 'split'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={handleDelete}
+              title="Delete this incident"
+              className="px-3 py-1.5 text-xs rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium transition-colors cursor-pointer flex items-center gap-1.5"
             >
-              Split View
-            </button>
-            <button
-              onClick={() => setActiveTab('pipeline')}
-              className={`px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
-                activeTab === 'pipeline'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              AI Pipeline
-            </button>
-            <button
-              onClick={() => setActiveTab('logs')}
-              className={`px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
-                activeTab === 'logs'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              ⚡ Live Logs ({logs.length})
+              <span>🗑️</span>
+              <span>Delete</span>
             </button>
           </div>
         </div>

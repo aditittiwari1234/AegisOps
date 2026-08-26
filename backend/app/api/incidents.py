@@ -187,3 +187,24 @@ async def get_incident(incident_id: str, db: AsyncSession = Depends(get_db)):
     if not inc:
         raise HTTPException(status_code=404, detail="Incident not found")
     return inc
+
+
+@router.delete("/{incident_id}")
+async def delete_incident(incident_id: str, db: AsyncSession = Depends(get_db)):
+    """Delete an incident and its associated child events and runs."""
+    result = await db.execute(select(Incident).where(Incident.id == incident_id))
+    inc = result.scalar_one_or_none()
+    if not inc:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    await db.delete(inc)
+    await db.commit()
+
+    await ws_manager.broadcast({
+        "type": "incident.deleted",
+        "incident_id": incident_id,
+        "payload": {"id": incident_id},
+    })
+
+    return {"status": "ok", "deleted_id": incident_id}
+

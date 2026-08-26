@@ -1,10 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { listIncidents, getAllLogs } from '../services/api'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { listIncidents, getAllLogs, deleteIncident } from '../services/api'
 import type { Incident, LogEntry } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import type { WSEvent } from '../hooks/useWebSocket'
 import { IncidentCard } from '../components/IncidentCard'
 import { LiveLogViewer } from '../components/LiveLogViewer'
+import { ContextMenu } from '../components/ContextMenu'
+import type { MenuItem } from '../components/ContextMenu'
 
 function MTTD(incidents: Incident[]) {
   const resolved = incidents.filter((i) => i.resolved_at)
@@ -16,12 +19,26 @@ function MTTD(incidents: Incident[]) {
   return Math.round(avg / 1000)
 }
 
+interface ContextMenuState {
+  x: number
+  y: number
+  incident: Incident
+}
+
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showLogs, setShowLogs] = useState(true)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(null), 2500)
+  }
 
   const fetchIncidents = useCallback(async () => {
     try {
@@ -71,6 +88,12 @@ export default function Dashboard() {
         })
       }
 
+      // Handle incident deleted via WS
+      if (evt.type === 'incident.deleted' && evt.payload?.id) {
+        const deletedId = evt.payload.id as string
+        setIncidents((prev) => prev.filter((i) => i.id !== deletedId))
+      }
+
       // Refresh incident list on any interesting event
       if (
         [
@@ -89,12 +112,88 @@ export default function Dashboard() {
 
   const { isConnected: wsConnected } = useWebSocket(handleWS)
 
+  const handleContextMenu = (e: React.MouseEvent, incident: Incident) => {
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      incident,
+    })
+  }
+
+  const handleDeleteIncident = async (incident: Incident) => {
+    if (window.confirm(`Are you sure you want to delete incident "${incident.title}"?`)) {
+      try {
+        await deleteIncident(incident.id)
+        setIncidents((prev) => prev.filter((i) => i.id !== incident.id))
+        showToast('✓ Incident deleted successfully')
+      } catch {
+        alert('Failed to delete incident.')
+      }
+    }
+  }
+
+  const getMenuItems = (incident: Incident): MenuItem[] => {
+    return [
+      {
+        label: 'View Full Incident Details',
+        icon: '🔍',
+        onClick: () => navigate(`/incidents/${incident.id}`),
+      },
+      {
+        label: 'Copy Incident ID',
+        icon: '📋',
+        onClick: () => {
+          navigator.clipboard.writeText(incident.id)
+          showToast('✓ Incident ID copied to clipboard')
+        },
+      },
+      {
+        label: 'Copy Incident Link',
+        icon: '🔗',
+        onClick: () => {
+          const url = `${window.location.origin}/incidents/${incident.id}`
+          navigator.clipboard.writeText(url)
+          showToast('✓ Incident URL copied to clipboard')
+        },
+      },
+      {
+        divider: true,
+        label: '',
+        onClick: () => {},
+      },
+      {
+        label: 'Delete Incident',
+        icon: '🗑️',
+        danger: true,
+        onClick: () => handleDeleteIncident(incident),
+      },
+    ]
+  }
+
   const active = incidents.filter((i) => !['RESOLVED', 'FAILED', 'ESCALATED'].includes(i.status))
   const resolved = incidents.filter((i) => i.status === 'RESOLVED')
   const avgMTTR = MTTD(incidents)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Right Click Context Menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          title={`Incident ${contextMenu.incident.id.slice(0, 8)}`}
+          items={getMenuItems(contextMenu.incident)}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
       {/* Header */}
       <header className="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-10 shadow-xs">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -170,12 +269,19 @@ export default function Dashboard() {
         {/* Active incidents */}
         {active.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-              <span>🔴 Active Incidents</span>
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <span>🔴 Active Incidents</span>
+              </h2>
+              <span className="text-[11px] text-slate-400">Right-click any incident for options</span>
+            </div>
             <div className="space-y-3">
               {active.map((i) => (
-                <IncidentCard key={i.id} incident={i} />
+                <IncidentCard
+                  key={i.id}
+                  incident={i}
+                  onContextMenu={handleContextMenu}
+                />
               ))}
             </div>
           </section>
@@ -183,9 +289,14 @@ export default function Dashboard() {
 
         {/* All incidents */}
         <section>
-          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-            <span>📋 Incident History</span>
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+              <span>📋 Incident History</span>
+            </h2>
+            {incidents.length > 0 && (
+              <span className="text-[11px] text-slate-400">Right-click any incident for options</span>
+            )}
+          </div>
           {loading ? (
             <div className="text-sm text-slate-500 animate-pulse">Loading incidents…</div>
           ) : incidents.length === 0 ? (
@@ -198,7 +309,11 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-3">
               {incidents.map((i) => (
-                <IncidentCard key={i.id} incident={i} />
+                <IncidentCard
+                  key={i.id}
+                  incident={i}
+                  onContextMenu={handleContextMenu}
+                />
               ))}
             </div>
           )}
