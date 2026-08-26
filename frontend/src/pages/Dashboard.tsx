@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { listIncidents, getAllLogs } from '../services/api'
 import type { Incident, LogEntry } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
@@ -6,6 +6,7 @@ import type { WSEvent } from '../hooks/useWebSocket'
 import { IncidentCard } from '../components/IncidentCard'
 import { SimulateButton } from '../components/SimulateButton'
 import { LiveLogViewer } from '../components/LiveLogViewer'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 function MTTD(incidents: Incident[]) {
   const resolved = incidents.filter((i) => i.resolved_at)
@@ -95,27 +96,27 @@ export default function Dashboard() {
   const avgMTTR = MTTD(incidents)
 
   return (
-    <div className="min-h-screen bg-[#080c14] text-slate-100 font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080c14] text-slate-900 dark:text-slate-100 font-sans transition-colors">
       {/* Header */}
-      <header className="border-b border-white/5 bg-[#0a0f1a]/80 backdrop-blur sticky top-0 z-10">
+      <header className="border-b border-slate-200 dark:border-white/5 bg-white/90 dark:bg-[#0a0f1a]/80 backdrop-blur sticky top-0 z-10 shadow-xs">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-sm shadow-blue-500/30">
               A
             </div>
             <div>
-              <h1 className="text-base font-bold text-white tracking-tight">AegisOps</h1>
-              <p className="text-xs text-slate-500">Autonomous Incident Response</p>
+              <h1 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">AegisOps</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Autonomous Incident Response</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* WS status indicator */}
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 px-2 py-1 bg-slate-100 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-800">
               <span
                 className={`h-2 w-2 rounded-full ${
                   wsConnected
-                    ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]'
-                    : 'bg-slate-600'
+                    ? 'bg-emerald-500 shadow-[0_0_6px_rgba(52,211,153,0.8)]'
+                    : 'bg-slate-400 dark:bg-slate-600'
                 }`}
               />
               {wsConnected ? 'Live' : 'Connecting…'}
@@ -124,15 +125,19 @@ export default function Dashboard() {
             {/* Toggle Logs View */}
             <button
               onClick={() => setShowLogs((prev) => !prev)}
-              className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-all ${
+              className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-all cursor-pointer ${
                 showLogs
-                  ? 'bg-blue-600/20 text-blue-300 border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
-                  : 'bg-slate-800/40 text-slate-400 border-slate-700 hover:text-slate-200'
+                  ? 'bg-blue-50 dark:bg-blue-600/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/40 shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               📟 Live Console {showLogs ? 'ON' : 'OFF'}
             </button>
 
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
+            {/* Simulate button */}
             <SimulateButton onSimulated={fetchIncidents} />
           </div>
         </div>
@@ -140,20 +145,20 @@ export default function Dashboard() {
 
       <main className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* Stats strip */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Incidents', value: incidents.length, color: 'text-white' },
+            { label: 'Total Incidents', value: incidents.length, color: 'text-slate-900 dark:text-white' },
             {
               label: 'Active',
               value: active.length,
-              color: active.length > 0 ? 'text-yellow-400' : 'text-slate-400',
+              color: active.length > 0 ? 'text-amber-600 dark:text-yellow-400' : 'text-slate-500 dark:text-slate-400',
             },
-            { label: 'Resolved', value: resolved.length, color: 'text-emerald-400' },
-            { label: 'Avg MTTR', value: avgMTTR != null ? `${avgMTTR}s` : '—', color: 'text-blue-400' },
+            { label: 'Resolved', value: resolved.length, color: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Avg MTTR', value: avgMTTR != null ? `${avgMTTR}s` : '—', color: 'text-blue-600 dark:text-blue-400' },
           ].map((stat) => (
-            <div key={stat.label} className="p-4 rounded-xl border border-white/5 bg-white/2">
+            <div key={stat.label} className="p-4 rounded-xl border border-slate-200 dark:border-white/5 bg-white dark:bg-white/2 shadow-xs">
               <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{stat.label}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -173,8 +178,8 @@ export default function Dashboard() {
         {/* Active incidents */}
         {active.length > 0 && (
           <section>
-            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
-              🔴 Active Incidents
+            <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <span>🔴 Active Incidents</span>
             </h2>
             <div className="space-y-3">
               {active.map((i) => (
@@ -186,16 +191,16 @@ export default function Dashboard() {
 
         {/* All incidents */}
         <section>
-          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
-            📋 Incident History
+          <h2 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <span>📋 Incident History</span>
           </h2>
           {loading ? (
-            <div className="text-sm text-slate-500 animate-pulse">Loading incidents…</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400 animate-pulse">Loading incidents…</div>
           ) : incidents.length === 0 ? (
-            <div className="text-center py-16 text-slate-600">
+            <div className="text-center py-16 text-slate-500 dark:text-slate-600 bg-white dark:bg-white/1 rounded-xl border border-slate-200 dark:border-white/5">
               <div className="text-4xl mb-3">🌿</div>
-              <p className="text-sm">
-                No incidents yet. Click <strong className="text-slate-400">Simulate Incident</strong> to start.
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                No incidents yet. Click <strong className="text-slate-900 dark:text-slate-200">Simulate Incident</strong> to start.
               </p>
             </div>
           ) : (
