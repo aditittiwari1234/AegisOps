@@ -8,6 +8,16 @@ import { IncidentCard } from '../components/IncidentCard'
 import { LiveLogViewer } from '../components/LiveLogViewer'
 import { ContextMenu } from '../components/ContextMenu'
 import type { MenuItem } from '../components/ContextMenu'
+import {
+  SearchIcon,
+  ClipboardIcon,
+  LinkIcon,
+  TrashIcon,
+  TerminalIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  SparklesIcon
+} from '../components/Icons'
 
 function MTTD(incidents: Incident[]) {
   const resolved = incidents.filter((i) => i.resolved_at)
@@ -125,7 +135,7 @@ export default function Dashboard() {
       try {
         await deleteIncident(incident.id)
         setIncidents((prev) => prev.filter((i) => i.id !== incident.id))
-        showToast('✓ Incident deleted successfully')
+        showToast('Incident deleted successfully')
       } catch {
         alert('Failed to delete incident.')
       }
@@ -136,24 +146,24 @@ export default function Dashboard() {
     return [
       {
         label: 'View Full Incident Details',
-        icon: '🔍',
+        icon: <SearchIcon size={14} className="text-slate-500" />,
         onClick: () => navigate(`/incidents/${incident.id}`),
       },
       {
         label: 'Copy Incident ID',
-        icon: '📋',
+        icon: <ClipboardIcon size={14} className="text-slate-500" />,
         onClick: () => {
           navigator.clipboard.writeText(incident.id)
-          showToast('✓ Incident ID copied to clipboard')
+          showToast('Incident ID copied to clipboard')
         },
       },
       {
         label: 'Copy Incident Link',
-        icon: '🔗',
+        icon: <LinkIcon size={14} className="text-slate-500" />,
         onClick: () => {
           const url = `${window.location.origin}/incidents/${incident.id}`
           navigator.clipboard.writeText(url)
-          showToast('✓ Incident URL copied to clipboard')
+          showToast('Incident URL copied to clipboard')
         },
       },
       {
@@ -163,7 +173,7 @@ export default function Dashboard() {
       },
       {
         label: 'Delete Incident',
-        icon: '🗑️',
+        icon: <TrashIcon size={14} className="text-rose-500" />,
         danger: true,
         onClick: () => handleDeleteIncident(incident),
       },
@@ -179,6 +189,7 @@ export default function Dashboard() {
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <CheckCircleIcon size={14} className="text-emerald-400" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -222,13 +233,14 @@ export default function Dashboard() {
             {/* Toggle Logs View */}
             <button
               onClick={() => setShowLogs((prev) => !prev)}
-              className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border font-medium transition-all cursor-pointer ${
                 showLogs
                   ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
                   : 'bg-slate-100 text-slate-600 border-slate-200 hover:text-slate-900'
               }`}
             >
-              📟 Live Console {showLogs ? 'ON' : 'OFF'}
+              <TerminalIcon size={14} className={showLogs ? 'text-blue-600' : 'text-slate-500'} />
+              <span>Live Console {showLogs ? 'ON' : 'OFF'}</span>
             </button>
           </div>
         </div>
@@ -271,7 +283,11 @@ export default function Dashboard() {
           <section>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <span>🔴 Active Incidents</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                </span>
+                <span>Active Incidents</span>
               </h2>
               <span className="text-[11px] text-slate-400">Right-click any incident for options</span>
             </div>
@@ -291,7 +307,8 @@ export default function Dashboard() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-              <span>📋 Incident History</span>
+              <ClockIcon size={13} className="text-slate-400" />
+              <span>Incident History</span>
             </h2>
             {incidents.length > 0 && (
               <span className="text-[11px] text-slate-400">Right-click any incident for options</span>
@@ -301,7 +318,9 @@ export default function Dashboard() {
             <div className="text-sm text-slate-500 animate-pulse">Loading incidents…</div>
           ) : incidents.length === 0 ? (
             <div className="text-center py-16 text-slate-500 bg-white rounded-xl border border-slate-200">
-              <div className="text-4xl mb-3">🌿</div>
+              <div className="flex justify-center mb-3">
+                <SparklesIcon size={32} className="text-emerald-500" />
+              </div>
               <p className="text-sm font-medium text-slate-600">
                 No incidents detected. All monitored services are healthy.
               </p>

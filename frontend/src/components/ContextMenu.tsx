@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 export interface MenuItem {
   label: string
-  icon?: string
+  icon?: React.ReactNode
   onClick: () => void
   danger?: boolean
   disabled?: boolean

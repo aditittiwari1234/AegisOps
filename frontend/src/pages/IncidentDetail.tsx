@@ -7,6 +7,15 @@ import type { WSEvent } from '../hooks/useWebSocket'
 import { AgentTimeline } from '../components/AgentTimeline'
 import { SeverityBadge, StatusBadge } from '../components/StatusBadge'
 import { LiveLogViewer } from '../components/LiveLogViewer'
+import {
+  BrainIcon,
+  CheckCircleIcon,
+  CheckIcon,
+  ZapIcon,
+  BotIcon,
+  ClockIcon,
+  TrashIcon
+} from '../components/Icons'
 
 function formatTs(ts: string) {
   return new Date(ts).toLocaleTimeString('en-US', { hour12: false })
@@ -184,13 +193,14 @@ export default function IncidentDetail() {
               </button>
               <button
                 onClick={() => setActiveTab('logs')}
-                className={`px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded transition-all font-medium cursor-pointer ${
                   activeTab === 'logs'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                ⚡ Live Logs ({logs.length})
+                <ZapIcon size={13} className={activeTab === 'logs' ? 'text-white' : 'text-slate-500'} />
+                <span>Live Logs ({logs.length})</span>
               </button>
             </div>
 
@@ -200,7 +210,7 @@ export default function IncidentDetail() {
               title="Delete this incident"
               className="px-3 py-1.5 text-xs rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 font-medium transition-colors cursor-pointer flex items-center gap-1.5"
             >
-              <span>🗑️</span>
+              <TrashIcon size={14} className="text-rose-600" />
               <span>Delete</span>
             </button>
           </div>
@@ -226,8 +236,9 @@ export default function IncidentDetail() {
             <p className="text-xs text-slate-600 leading-relaxed">{incident.summary}</p>
 
             {duration && (
-              <div className="mt-3 text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                <span>✓</span> Resolved in {duration}s
+              <div className="mt-3 text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+                <CheckIcon size={14} className="text-emerald-600" />
+                <span>Resolved in {duration}s</span>
               </div>
             )}
           </div>
@@ -235,8 +246,9 @@ export default function IncidentDetail() {
           {/* Root cause */}
           {incident.root_cause && (
             <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/70 shadow-xs">
-              <div className="text-xs font-semibold text-purple-700 mb-1.5 flex items-center gap-1">
-                <span>🧠</span> Root Cause
+              <div className="text-xs font-semibold text-purple-700 mb-1.5 flex items-center gap-1.5">
+                <BrainIcon size={14} className="text-purple-600" />
+                <span>Root Cause</span>
               </div>
               <p className="text-sm text-slate-800 leading-relaxed">{incident.root_cause}</p>
             </div>
@@ -251,8 +263,9 @@ export default function IncidentDetail() {
                   : 'border-rose-200 bg-rose-50/70'
               } shadow-xs`}
             >
-              <div className="text-xs font-semibold text-emerald-700 mb-2 flex items-center gap-1">
-                <span>✅</span> Verification Results
+              <div className="text-xs font-semibold text-emerald-700 mb-2 flex items-center gap-1.5">
+                <CheckCircleIcon size={14} className="text-emerald-600" />
+                <span>Verification Results</span>
               </div>
               <div className="grid grid-cols-2 gap-2.5 text-xs">
                 <div>
@@ -282,8 +295,9 @@ export default function IncidentDetail() {
           {/* Remediation actions */}
           {incident.remediation_actions.length > 0 && (
             <div className="p-4 rounded-xl border border-cyan-200 bg-cyan-50/70 shadow-xs">
-              <div className="text-xs font-semibold text-cyan-800 mb-1.5 flex items-center gap-1">
-                <span>⚡</span> Runbook Executed
+              <div className="text-xs font-semibold text-cyan-800 mb-1.5 flex items-center gap-1.5">
+                <ZapIcon size={14} className="text-cyan-700" />
+                <span>Runbook Executed</span>
               </div>
               {incident.remediation_actions.map((a) => (
                 <div key={a.id} className="text-sm text-slate-800">
@@ -296,7 +310,10 @@ export default function IncidentDetail() {
 
           {/* Timeline events */}
           <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs">
-            <div className="text-xs font-semibold text-slate-500 mb-2.5 uppercase tracking-wider">📋 Incident Timeline</div>
+            <div className="text-xs font-semibold text-slate-500 mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
+              <ClockIcon size={13} className="text-slate-400" />
+              <span>Incident Timeline</span>
+            </div>
             <EventFeed events={incident.events} />
           </div>
         </div>
@@ -308,12 +325,13 @@ export default function IncidentDetail() {
             <div className="p-5 rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="text-xs font-semibold text-slate-700 mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span>🤖 AI Agent Pipeline</span>
+                  <BotIcon size={16} className="text-slate-600" />
+                  <span className="font-semibold">AI Agent Pipeline</span>
                   <span className="text-slate-400 font-normal">
                     ({incident.agent_runs.length}/7 completed)
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 font-mono">Model: Gemini 3.6 Flash</span>
+                <span className="text-[11px] text-slate-500 font-mono">Model: Gemini 2.0 Flash</span>
               </div>
               <AgentTimeline agentRuns={incident.agent_runs} liveEvents={liveEvents} />
             </div>

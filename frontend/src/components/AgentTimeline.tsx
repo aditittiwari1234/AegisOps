@@ -1,14 +1,27 @@
+import React from 'react'
 import type { AgentRun } from '../services/api'
 import type { WSEvent } from '../hooks/useWebSocket'
+import {
+  SearchIcon,
+  InvestigateIcon,
+  KnowledgeIcon,
+  BrainIcon,
+  SafetyIcon,
+  ZapIcon,
+  VerificationIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  LoaderIcon
+} from './Icons'
 
-const AGENT_LABELS: Record<string, { label: string; icon: string }> = {
-  detection:    { label: 'Detection Agent',    icon: '🔍' },
-  investigation:{ label: 'Investigation Agent', icon: '🕵️' },
-  knowledge:    { label: 'Knowledge Agent',    icon: '📚' },
-  root_cause:   { label: 'Root Cause Agent',   icon: '🧠' },
-  safety:       { label: 'Safety Agent',       icon: '🛡️' },
-  action:       { label: 'Action Agent',       icon: '⚡' },
-  verification: { label: 'Verification Agent', icon: '✅' },
+const AGENT_META: Record<string, { label: string; IconComponent: React.ComponentType<{ size?: number; className?: string }> }> = {
+  detection:    { label: 'Detection Agent',    IconComponent: SearchIcon },
+  investigation:{ label: 'Investigation Agent', IconComponent: InvestigateIcon },
+  knowledge:    { label: 'Knowledge Agent',    IconComponent: KnowledgeIcon },
+  root_cause:   { label: 'Root Cause Agent',   IconComponent: BrainIcon },
+  safety:       { label: 'Safety Agent',       IconComponent: SafetyIcon },
+  action:       { label: 'Action Agent',       IconComponent: ZapIcon },
+  verification: { label: 'Verification Agent', IconComponent: VerificationIcon },
 }
 
 const AGENT_ORDER = ['detection', 'investigation', 'knowledge', 'root_cause', 'safety', 'action', 'verification']
@@ -35,10 +48,11 @@ export function AgentTimeline({ agentRuns, liveEvents }: Props) {
       {AGENT_ORDER.map((agentName) => {
         const run = runMap.get(agentName)
         const isLive = liveRunning.has(agentName)
-        const meta = AGENT_LABELS[agentName]
+        const meta = AGENT_META[agentName] || { label: agentName, IconComponent: SearchIcon }
         const isDone = run?.status === 'done'
         const isFailed = run?.status === 'failed'
         const isRunning = run?.status === 'running' || isLive
+        const Icon = meta.IconComponent
 
         return (
           <div
@@ -50,23 +64,28 @@ export function AgentTimeline({ agentRuns, liveEvents }: Props) {
               'border-slate-200 bg-slate-50/50 opacity-80'
             }`}
           >
-            {/* Icon/Status indicator */}
-            <div className="mt-0.5 text-lg w-7 flex-shrink-0 text-center">
+            {/* SVG Icon / Status indicator */}
+            <div className="mt-0.5 w-7 flex-shrink-0 flex items-center justify-center">
               {isRunning ? (
-                <span className="inline-block animate-spin">⚙️</span>
-              ) : isDone ? '✅' : isFailed ? '❌' : (
-                <span className="opacity-40">{meta.icon}</span>
+                <LoaderIcon size={18} className="text-blue-600" />
+              ) : isDone ? (
+                <CheckCircleIcon size={18} className="text-emerald-600" />
+              ) : isFailed ? (
+                <XCircleIcon size={18} className="text-rose-600" />
+              ) : (
+                <Icon size={18} className="text-slate-400 opacity-60" />
               )}
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className={`text-sm font-semibold ${
+                <span className={`text-sm font-semibold flex items-center gap-1.5 ${
                   isDone ? 'text-emerald-800' :
                   isRunning ? 'text-blue-700' :
                   isFailed ? 'text-rose-800' :
                   'text-slate-600'
                 }`}>
+                  <Icon size={14} className={isDone ? 'text-emerald-700' : isRunning ? 'text-blue-600' : isFailed ? 'text-rose-700' : 'text-slate-400'} />
                   {meta.label}
                 </span>
                 {run?.duration_ms && (

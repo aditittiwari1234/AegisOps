@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import type { Incident } from '../services/api'
 import { SeverityBadge, StatusBadge } from './StatusBadge'
+import { TagIcon, BotIcon, BrainIcon, CheckIcon } from './Icons'
 
 interface Props {
   incident: Incident
@@ -67,18 +68,28 @@ export function IncidentCard({ incident, onContextMenu }: Props) {
               {new Date(incident.created_at).toLocaleTimeString()}
             </div>
             {duration && (
-              <div className="text-xs font-semibold text-emerald-600 mt-0.5">
-                ✓ {duration}
+              <div className="text-xs font-semibold text-emerald-600 mt-0.5 flex items-center justify-end gap-1">
+                <CheckIcon size={12} />
+                <span>{duration}</span>
               </div>
             )}
           </div>
         </div>
 
         <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1">🏷️ {incident.service}</span>
-          <span className="flex items-center gap-1">🤖 {incident.agent_runs.length}/7 agents</span>
+          <span className="flex items-center gap-1.5">
+            <TagIcon size={13} className="text-slate-400" />
+            <span>{incident.service}</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <BotIcon size={13} className="text-slate-400" />
+            <span>{incident.agent_runs.length}/7 agents</span>
+          </span>
           {incident.root_cause && (
-            <span className="truncate max-w-[280px]">🧠 {incident.root_cause}</span>
+            <span className="truncate max-w-[280px] flex items-center gap-1.5">
+              <BrainIcon size={13} className="text-slate-400 flex-shrink-0" />
+              <span className="truncate">{incident.root_cause}</span>
+            </span>
           )}
         </div>
       </Link>
