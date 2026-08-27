@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { listIncidents, getAllLogs, deleteIncident } from '../services/api'
+import { listIncidents, getAllLogs, deleteIncident, simulateIncident } from '../services/api'
 import type { Incident, LogEntry } from '../services/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import type { WSEvent } from '../hooks/useWebSocket'
@@ -16,7 +16,8 @@ import {
   TerminalIcon,
   ClockIcon,
   CheckCircleIcon,
-  SparklesIcon
+  SparklesIcon,
+  ZapIcon
 } from '../components/Icons'
 
 function MTTD(incidents: Incident[]) {
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showLogs, setShowLogs] = useState(true)
+  const [simulating, setSimulating] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -60,6 +62,19 @@ export default function Dashboard() {
       setLoading(false)
     }
   }, [])
+
+  const handleSimulate = async () => {
+    try {
+      setSimulating(true)
+      const inc = await simulateIncident('kartify')
+      showToast(`Simulated incident ${inc.id.slice(0, 8)} started!`)
+      await fetchIncidents()
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail || 'Failed to simulate incident')
+    } finally {
+      setSimulating(false)
+    }
+  }
 
   const fetchLogs = useCallback(async () => {
     try {
@@ -229,6 +244,16 @@ export default function Dashboard() {
               />
               {wsConnected ? 'Live Telemetry' : 'Connecting…'}
             </div>
+
+            {/* Simulate Incident Button */}
+            <button
+              onClick={handleSimulate}
+              disabled={simulating}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow-xs shadow-rose-500/30 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <ZapIcon size={14} className={simulating ? 'animate-bounce' : ''} />
+              <span>{simulating ? 'Simulating…' : 'Simulate Incident'}</span>
+            </button>
 
             {/* Toggle Logs View */}
             <button
