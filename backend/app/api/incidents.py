@@ -200,11 +200,14 @@ async def delete_incident(incident_id: str, db: AsyncSession = Depends(get_db)):
     await db.delete(inc)
     await db.commit()
 
-    await ws_manager.broadcast({
-        "type": "incident.deleted",
-        "incident_id": incident_id,
-        "payload": {"id": incident_id},
-    })
+    await ws_manager.broadcast(
+        incident_id=incident_id,
+        event_type="incident.deleted",
+        agent=None,
+        status="deleted",
+        payload={"id": incident_id},
+    )
 
     return {"status": "ok", "deleted_id": incident_id}
+
 
