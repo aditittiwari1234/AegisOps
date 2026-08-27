@@ -27,7 +27,7 @@ async def _poll_health(attempts: int = 4, delay: float = 1.5) -> dict:
     last: dict = {"status": "unknown", "http_status": 0}
     for _ in range(attempts):
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
+            async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
                 r = await client.get(f"{KARTIFY_URL}/health")
                 body = r.json()
                 last = {"status": body.get("status", "unknown"), "http_status": r.status_code}

@@ -82,7 +82,7 @@ async def simulate_incident(
     log_snippet = ""
     if body.trigger_kartify:
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
+            async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
                 r = await client.post(
                     f"{KARTIFY_URL}/admin/simulate-incident",
                     headers={"x-admin-key": KARTIFY_ADMIN_KEY},

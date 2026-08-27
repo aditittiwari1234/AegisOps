@@ -90,7 +90,7 @@ async def health_poller():
     while True:
         await asyncio.sleep(5)
         try:
-            async with httpx.AsyncClient(timeout=3) as client:
+            async with httpx.AsyncClient(timeout=5, follow_redirects=True) as client:
                 r = await client.get(f"{KARTIFY_URL}/health")
                 body = r.json()
                 current = body.get("status", "unknown")

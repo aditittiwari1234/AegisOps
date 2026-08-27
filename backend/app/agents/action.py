@@ -99,7 +99,7 @@ async def run(
             data={"url": url, "method": method, "headers": runbook.get("headers", {})},
         )
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
                 resp = await client.request(
                     method=method,
                     url=url,
