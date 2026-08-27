@@ -19,7 +19,7 @@ LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemma-2-9b-it:free")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 
 class LLMClient:
@@ -64,19 +64,23 @@ class LLMClient:
     async def _openrouter(self, prompt: str, response_schema: Type[T]) -> T:
         schema_json = json.dumps(response_schema.model_json_schema(), indent=2)
         system = (
-            "You are a JSON-only responder. "
-            f"Respond ONLY with a valid JSON object matching this schema:\n{schema_json}\n"
-            "No explanation, no markdown fences — pure JSON only."
+            "You are a specialized AI agent in the AegisOps incident response team.\n"
+            "You MUST respond with a single valid JSON object that strictly conforms to this JSON Schema:\n"
+            f"{schema_json}\n"
+            "Do not include markdown code blocks, backticks, or any explanatory text outside the JSON."
         )
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "HTTP-Referer": "https://aegisops.local",
+                    "X-Title": "AegisOps Incident Response",
                     "Content-Type": "application/json",
                 },
                 json={
                     "model": OPENROUTER_MODEL,
+                    "response_format": {"type": "json_object"},
                     "messages": [
                         {"role": "system", "content": system},
                         {"role": "user", "content": prompt},
@@ -108,7 +112,7 @@ class LLMClient:
                 err_str = str(e)
                 if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                     if attempt < retries:
-                        await asyncio.sleep(4.0)
+                        await asyncio.sleep(10.0)
                         continue
                 if attempt < retries:
                     prompt = prompt + "\n\nYour previous response was not valid JSON. Respond ONLY with a valid JSON object."

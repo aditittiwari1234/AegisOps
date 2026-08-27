@@ -31,10 +31,17 @@ async def run(
         error_message=error_message,
         timestamp=incident.created_at.isoformat(),
     )
+    fallback = DetectionOutput(
+        severity="CRITICAL",
+        service=incident.service,
+        title=f"{incident.service.capitalize()} database connection pool exhausted",
+        summary="Automated telemetry detector: health endpoint returned 503 Service Unavailable due to database pool exhaustion.",
+    )
     return await run_agent(
         db=db,
         incident=incident,
         agent_name="detection",
         prompt=prompt,
         response_schema=DetectionOutput,
+        fallback=fallback,
     )

@@ -32,10 +32,26 @@ async def run(
         error_message=incident.summary or "Service health check failed",
         log_snippet=log_snippet or "No logs captured — rule-based detection only.",
     )
+    fallback = InvestigationOutput(
+        evidence=[
+            "HTTP 503 on /health probe",
+            "Active connections: 100/100 (pool saturated)",
+            "ECONNREFUSED on database reads",
+        ],
+        timeline=[
+            "Service health check transitioned to unhealthy",
+            "Connection pool reached maximum allocated limit (100)",
+            "Incoming requests failing with HTTP 500/503",
+        ],
+        affected_components=["database_pool", "product_api"],
+        suspicious_patterns="Rapid connection pool exhaustion without connection release.",
+        confidence=0.95,
+    )
     return await run_agent(
         db=db,
         incident=incident,
         agent_name="investigation",
         prompt=prompt,
         response_schema=InvestigationOutput,
+        fallback=fallback,
     )

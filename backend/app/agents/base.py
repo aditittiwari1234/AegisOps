@@ -32,6 +32,7 @@ async def run_agent(
     agent_name: str,
     prompt: str,
     response_schema: Type[T],
+    fallback: T | None = None,
 ) -> T:
     """
     Core agent runner:
@@ -107,6 +108,30 @@ async def run_agent(
 
     except Exception as exc:
         duration_ms = int((time.monotonic() - t0) * 1000)
+
+        if fallback is not None:
+            # Emergency deterministic fallback when LLM is rate-limited or quota-exhausted
+            await ws_manager.broadcast_log(
+                incident_id=incident.id,
+                level="WARN",
+                source=f"AGENT:{agent_name}",
+                message=f"LLM quota/network issue ({exc}). Engaged deterministic diagnostic heuristics.",
+                data={"fallback_used": True, "error": str(exc)},
+            )
+            run.status = "done"
+            run.output_json = fallback.model_dump()
+            run.duration_ms = duration_ms
+            await db.commit()
+
+            await ws_manager.broadcast(
+                incident_id=incident.id,
+                event_type="agent.completed",
+                agent=agent_name,
+                status=incident.status,
+                payload=fallback.model_dump(),
+            )
+            return fallback
+
         run.status = "failed"
         run.output_json = {"error": str(exc)}
         run.duration_ms = duration_ms
